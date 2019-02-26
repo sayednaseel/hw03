@@ -1,4 +1,5 @@
 function qs = assemblebwroot
+close all;clear all;clc
 % Finds the initial conditions for leg angles q1, q2, q3 that produce
 % the desired step length and forward progression of the hip.
 % Desired step length is 0.68 m, and forward progression of the hip
@@ -49,25 +50,29 @@ q23 = [q20; q30]; % contains values for q2 and q3
 % Since q1 is already determined, the error in toe position only depends
 % on q2 and q3. The error returned has two components, x and y
 initialToeError = toeerror23(q23); 
-fprintf(1,'Initial guess q = [%g %g %g]\n', [q10 q20 q30]);
+fprintf(1,'Initial guess q = [%g %g %g]\n', [radtodeg(q10) radtodeg(q20) radtodeg(q30)]);
 fprintf(1,'Initial toe error = %g %g\n', initialToeError);
 
 % Plot the initial and target toe positions along with a stick figure
 clf; axis equal; hold on; % prepare a figure window
-plot(-initialToeError(1)-SL+0*lfoot,-initialToeError(2), 'b.', ...
+plot(-initialToeError(1)-SL+0*lfoot,-initialToeError(2), 'bo', ...
   -SL+0*lfoot, 0, 'r.'); hold on; % target indicated by red dot
 legend('Initial toe position', 'Target toe position');
-drawballwalk([q10 q20 q30]); % draw a stick model 
 
+drawballwalk([q10 q20 q30],'blue'); % draw a stick model 
+grid on;
+
+%% PUT YOUR CODE HERE TO USE FINDROOT TO DETERMINE ASSEMBLY 
 % now solve for the q2 and q3 that yield the desired toe position
-q23star = ; %% PUT YOUR CODE HERE TO USE FINDROOT TO DETERMINE ASSEMBLY 
+%q23star = [45*pi/180;0*pi/180]; 
+q23star =findroot(@toeerror23,q23);
 
 qs = [q10; q23star(1); q23star(2)]; % return the solution
 
 % Plot the final configuration after finding the root
-fprintf(1,'Final value   q = [%g %g %g]\n', [q10 q23star(1) q23star(2)]);
+fprintf(1,'Final value   q = [%g %g %g]\n', [radtodeg(q10) radtodeg(q23star(1)) radtodeg(q23star(2))]);
 fprintf(1,'Final toe error = %g %g\n', toeerror23(q23star));
-drawballwalk(qs);
+drawballwalk(qs,'magenta');
 
 % next part: find combinations of q's to produce desired x's
 
@@ -77,7 +82,7 @@ drawballwalk(qs);
 % to the gradient of the actual toe location, since the target location
 % is constant. However, this uses the negative of the actual toe location
 % so we will have to use -J later.
-J = fjacobian(@toeerror, qs);
+J = fjacobian(@toeerror23, qs);
 
 [U, S, V] = svd(J); % singular value decomposition
 
@@ -107,7 +112,7 @@ fprintf(1,'[ dq3 ]        [ %+5.3f ]        [ %+5.3f ]\n', V2(3,2), V2(3,3));
 % with each iteration. (Note that in other methods of root finding,
 % it is not necessarily possible to find the root of a function with
 % two elements, if the input has three elements as is the case here.)
-qsoln2 = findroot(@toeerror, [q10; q20; q30]);
+qsoln2 = findroot(@toeerror23, [q10; q20; q30]);
 fprintf(1,'The solution from findroot is [%g; %g; %g]\n', qsoln2);
 
 %% Subfunctions below are called by main program, and have access
@@ -137,14 +142,14 @@ xtoe = -l1*sin(q10) + l2*sin(q20) + l3*sin(q30) + lfoot*sin(q30+pi/2);
 ytoe = l1*cos(q10) - l2*cos(q20) - l3*cos(q30) - lfoot*cos(q30+pi/2);
 
 % Calculate the error between actual and desired toe positions
-err = [ ;  ]; %% PUT YOUR CODE HERE TO CALCULATE THE ERROR IN X AND Y POSITIONS:
+err = [ (-SL+lfoot)-xtoe;-ytoe]; %% PUT YOUR CODE HERE TO CALCULATE THE ERROR IN X AND Y POSITIONS:
 % (This should be a vector that, when placed at the current toe position,
 % will point towards the desired toe position.)
 
 end
 
 
-function hlegout = drawballwalk(x, hlegs);
+function hlegout = drawballwalk(x,Colorin ,hlegs);
     % Use the angles to draw a stick figure of the leg configuration
     % The segment lengths should be defined in outer scope of this
     % nested function.
@@ -169,9 +174,9 @@ function hlegout = drawballwalk(x, hlegs);
     xlocations = [xtoe, xankle, xhip, xswingknee, xswingankle, xswingtoe];
     ylocations = [ytoe, yankle, yhip, yswingknee, yswingankle, yswingtoe];
 
-    if nargin < 2 % need to produce new line
+    if nargin < 3 % need to produce new line
         hlegout = line('xdata', xlocations, 'ydata', ylocations, 'linewidth', 3, 'linestyle', '-',...
-            'marker', '.', 'markersize', 20);
+            'marker', '.', 'markersize', 20,'Color',Colorin);
     else          % lines exist, so update their positions
         set(hlegs,'xdata', xlocations, 'ydata', ylocations);
     end
